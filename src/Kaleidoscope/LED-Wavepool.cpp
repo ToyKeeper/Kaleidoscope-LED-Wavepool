@@ -21,7 +21,7 @@
 
 namespace kaleidoscope {
 
-#define MS_PER_FRAME_POW2 6  // one frame every 64 ms
+#define MS_PER_FRAME_POW2 5  // one frame every 32 ms
 
 int8_t WavepoolEffect::surface[2][WP_WID*WP_HGT];
 uint8_t WavepoolEffect::page = 0;
@@ -37,13 +37,15 @@ PROGMEM const uint8_t WavepoolEffect::positions[WP_HGT*WP_WID] = {
     64, 64,  7, 23, 39, 55, 54,   57, 56, 40, 24,  8, 64, 64,
 };
 */
-// map native keyboard coordinates (16x4) into geometric space (14x5)
-PROGMEM const uint8_t WavepoolEffect::rc2pos[ROWS*COLS] = {
-    17, 18, 19, 20, 21, 22, 23,    84, 91,   24, 25, 26, 27, 28, 29, 30,
-    33, 34, 35, 36, 37, 38, 55,    85, 90,   56, 41, 42, 43, 44, 45, 46,
-    49, 50, 51, 52, 53, 54, 71,    86, 89,   72, 57, 58, 59, 60, 61, 62,
-    65, 66, 67, 68, 69, 70,     83,87, 88,92,    73, 74, 75, 76, 77, 78,
+// map native keyboard coordinates (16x4) into geometric space (30x12)
+PROGMEM const uint16_t WavepoolEffect::rc2pos[ROWS*COLS] = {
+     31,  33,  35,  37,  39,  41,  43,      277, 291,       45,  47,  49,  51,  53,  55,  57,
+     91,  93,  95,  97,  99, 101, 163,      279, 289,      165, 107, 109, 111, 113, 115, 117,
+    151, 153, 155, 157, 159, 161, 223,      281, 287,      225, 167, 169, 171, 173, 175, 177,
+    211, 213, 215, 217, 219, 221,      275, 283, 285, 293,      227, 229, 231, 233, 235, 237,
 };
+//#define RC2POS(x,y) pgm_read_byte(rc2pos + ((uint16_t)(y*2)*WP_WID)+((uint16_t)x*2))
+#define RC2POS(x,y) ((uint16_t)pgm_read_word(rc2pos + (y*WP_WID)+x))
 
 WavepoolEffect::WavepoolEffect(void) {
 }
@@ -58,8 +60,7 @@ Key WavepoolEffect::eventHandlerHook(Key mapped_key, byte row, byte col, uint8_t
     return mapped_key;
 
   if (keyIsPressed(key_state)) {
-    uint8_t offset = (row*COLS)+col;
-    surface[page][pgm_read_byte(rc2pos + offset)] = 0x7f;
+    surface[page][RC2POS(col,row)] = 0x7f;
     frames_since_event = 0;
   }
 
@@ -67,7 +68,7 @@ Key WavepoolEffect::eventHandlerHook(Key mapped_key, byte row, byte col, uint8_t
 }
 
 void WavepoolEffect::raindrop(uint8_t x, uint8_t y, int8_t *page) {
-  uint8_t rainspot = (y*WP_WID) + x;
+  uint16_t rainspot = (y*WP_WID) + x;
 
   page[rainspot] = 0x7f;
 }
@@ -134,7 +135,7 @@ void WavepoolEffect::update(void) {
                      };
   for (uint8_t y = 1; y < WP_HGT-1; y++) {
     for (uint8_t x = 1; x < WP_WID-1; x++) {
-      uint8_t offset = (y*WP_WID) + x;
+      uint16_t offset = ((uint16_t)y*WP_WID) + x;
 
       int16_t value;
 
@@ -156,8 +157,7 @@ void WavepoolEffect::update(void) {
   // draw the water on the keys
   for (byte r = 0; r < ROWS; r++) {
     for (byte c = 0; c < COLS; c++) {
-      uint8_t offset = (r*COLS) + c;
-      int8_t height = oldpg[pgm_read_byte(rc2pos+offset)];
+      int8_t height = oldpg[RC2POS(c,r)];
 
       uint8_t intensity = abs(height) * 2;
 

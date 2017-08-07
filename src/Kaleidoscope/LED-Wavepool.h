@@ -22,8 +22,9 @@
 #include <Kaleidoscope-LEDControl.h>
 
 // 14x5 grid + 1px border, reduces ROM+CPU use while increasing RAM use
-#define WP_WID 16
-#define WP_HGT 7
+// ... doubled, for oversampling
+#define WP_WID 30
+#define WP_HGT 12
 
 namespace kaleidoscope {
 class WavepoolEffect : public LEDMode {
@@ -41,7 +42,7 @@ class WavepoolEffect : public LEDMode {
   static int8_t surface[2][WP_WID*WP_HGT];
   static uint8_t page;
   //static PROGMEM const uint8_t positions[WP_HGT*WP_WID];  // unused
-  static PROGMEM const uint8_t rc2pos[ROWS*COLS];
+  static PROGMEM const uint16_t rc2pos[ROWS*COLS];
 
   static Key eventHandlerHook(Key mapped_key, byte row, byte col, uint8_t key_state);
   static inline void raindrop(uint8_t x, uint8_t y, int8_t *page);
