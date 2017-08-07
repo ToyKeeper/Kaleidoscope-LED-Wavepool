@@ -39,10 +39,10 @@ PROGMEM const uint8_t WavepoolEffect::positions[WP_HGT*WP_WID] = {
 */
 // map native keyboard coordinates (16x4) into geometric space (14x5)
 PROGMEM const uint8_t WavepoolEffect::rc2pos[ROWS*COLS] = {
-     0,  1,  2,  3,  4,  5,  6,    59, 66,    7,  8,  9, 10, 11, 12, 13,
-    14, 15, 16, 17, 18, 19, 34,    60, 65,   35, 22, 23, 24, 25, 26, 27,
-    28, 29, 30, 31, 32, 33, 48,    61, 64,   49, 36, 37, 38, 39, 40, 41,
-    42, 43, 44, 45, 46, 47,     58,62, 63,67,    50, 51, 52, 53, 54, 55,
+    17, 18, 19, 20, 21, 22, 23,    84, 91,   24, 25, 26, 27, 28, 29, 30,
+    33, 34, 35, 36, 37, 38, 55,    85, 90,   56, 41, 42, 43, 44, 45, 46,
+    49, 50, 51, 52, 53, 54, 71,    86, 89,   72, 57, 58, 59, 60, 61, 62,
+    65, 66, 67, 68, 69, 70,     83,87, 88,92,    73, 74, 75, 76, 77, 78,
 };
 
 WavepoolEffect::WavepoolEffect(void) {
@@ -70,10 +70,6 @@ void WavepoolEffect::raindrop(uint8_t x, uint8_t y, int8_t *page) {
   uint8_t rainspot = (y*WP_WID) + x;
 
   page[rainspot] = 0x7f;
-  if (y > 0) page[rainspot-WP_WID] = 0x60;
-  if (y < (WP_HGT-1)) page[rainspot+WP_WID] = 0x60;
-  if (x > 0) page[rainspot-1] = 0x60;
-  if (x < (WP_WID-1)) page[rainspot+1] = 0x60;
 }
 
 // this is a lot smaller than the standard library's rand(),
@@ -96,8 +92,6 @@ void WavepoolEffect::update(void) {
   }
 
   // rotate the colors over time
-  // (side note: it's weird that this is a 16-bit int instead of 8-bit,
-  //  but that's what the library function wants)
   static uint8_t current_hue = 0;
   current_hue ++;
 
@@ -123,8 +117,8 @@ void WavepoolEffect::update(void) {
         frames_till_next_drop = 4 + (wp_rand() & 0x3f);
         frames_since_event = idle_timeout >> MS_PER_FRAME_POW2;
 
-        uint8_t x = wp_rand() % WP_WID;
-        uint8_t y = wp_rand() % WP_HGT;
+        uint8_t x = 1 + wp_rand() % (WP_WID-2);
+        uint8_t y = 1 + wp_rand() % (WP_HGT-2);
         raindrop(x, y, oldpg);
 
         prev_x = x;
@@ -133,49 +127,29 @@ void WavepoolEffect::update(void) {
   }
 
   // calculate water movement
-  // (originally skipped edges, but this keyboard is too small for that)
-  //for (uint8_t y = 1; y < WP_HGT-1; y++) {
-  //  for (uint8_t x = 1; x < WP_WID-1; x++) {
-  for (uint8_t y = 0; y < WP_HGT; y++) {
-    for (uint8_t x = 0; x < WP_WID; x++) {
+  int8_t offsets[] = { -WP_WID,    WP_WID,
+                              -1,         1,
+                       -WP_WID-1, -WP_WID+1,
+                        WP_WID-1,  WP_WID+1
+                     };
+  for (uint8_t y = 1; y < WP_HGT-1; y++) {
+    for (uint8_t x = 1; x < WP_WID-1; x++) {
       uint8_t offset = (y*WP_WID) + x;
 
       int16_t value;
-      int8_t offsets[] = { -WP_WID,    WP_WID,
-                                  -1,         1,
-                           -WP_WID-1, -WP_WID+1,
-                            WP_WID-1,  WP_WID+1
-                         };
-      // don't wrap around edges or go out of bounds
-      if (y==0) {
-          offsets[0] = 0;
-          offsets[4] += WP_WID;
-          offsets[5] += WP_WID;
-          }
-      else if (y==WP_HGT-1) {
-          offsets[1] = 0;
-          offsets[6] -= WP_WID;
-          offsets[7] -= WP_WID;
-          }
-      if (x==0) {
-          offsets[2] = 0;
-          offsets[4] += 1;
-          offsets[6] += 1;
-          }
-      else if (x==WP_WID-1) {
-          offsets[3] = 0;
-          offsets[5] -= 1;
-          offsets[7] -= 1;
-          }
 
       // add up all samples, divide, subtract prev frame's center
       int8_t *p;
-      for(p=offsets, value=0; p<offsets+8; p++)
-          value += oldpg[offset + (*p)];
-      value = (value >> 2) - newpg[offset];
+      for(p=offsets, value=oldpg[offset]; p<offsets+8; p++)
+          value += (int16_t)(oldpg[offset + (*p)]);
+      value = (value >> 2) - (int16_t)(newpg[offset]);
 
       // reduce intensity gradually over time
-      newpg[offset] = value - (value >> 3);
+      value = value - (value >> 3);
+      #define VMAX 80  // fudge factor, try to prevent clipping
+      if (value < -VMAX) value = -VMAX;
+      else if (value > VMAX) value = VMAX;
+      newpg[offset] = value;
     }
   }
 
@@ -189,7 +163,7 @@ void WavepoolEffect::update(void) {
 
       // color starts white but gets dimmer and more saturated as it fades,
       // with hue wobbling according to height map
-      int16_t hue = (current_hue + height + (height>>1)) & 0xff;
+      int16_t hue = (current_hue + (int16_t)height + (height>>1)) & 0xff;
 
       cRGB color = hsvToRgb(hue,
                             0xff - intensity,
