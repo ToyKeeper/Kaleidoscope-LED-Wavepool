@@ -41,8 +41,8 @@ PROGMEM const uint8_t WavepoolEffect::rc2pos[ROWS*COLS] = {
 WavepoolEffect::WavepoolEffect(void) {
 }
 
-void WavepoolEffect::begin(void) {
-  event_handler_hook_use(eventHandlerHook);
+void WavepoolEffect::onActivate(void) {
+  Kaleidoscope.useEventHandlerHook(eventHandlerHook);
   LEDMode::begin();
 }
 
@@ -207,7 +207,7 @@ void WavepoolEffect::update(void) {
                             0xff - intensity,
                             ((uint16_t)intensity)*2);
 
-      LEDControl.setCrgbAt(r, c, color);
+      LEDControl::setCrgbAt(r, c, color);
     }
   }
 
