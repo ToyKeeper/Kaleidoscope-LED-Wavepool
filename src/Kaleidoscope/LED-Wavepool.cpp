@@ -21,9 +21,10 @@
 
 namespace kaleidoscope {
 
-#define INTERPOLATE  // smoother, slower animation
+#define INTERPOLATE // smoother, slower animation
 #define MS_PER_FRAME 40  // 40 = 25 fps
 #define FRAMES_PER_DROP 120  // max time between raindrops during idle animation
+#undef CONSTANT_HUE
 
 int8_t WavepoolEffect::surface[2][WP_WID*WP_HGT];
 uint8_t WavepoolEffect::page = 0;
@@ -90,8 +91,10 @@ void WavepoolEffect::update(void) {
   // rotate the colors over time
   // (side note: it's weird that this is a 16-bit int instead of 8-bit,
   //  but that's what the library function wants)
-  static uint8_t current_hue = 0;
+  static uint16_t current_hue = starting_hue;
+  #ifndef CONSTANT_HUE
   current_hue ++;
+  #endif
 
   frames_since_event ++;
 
@@ -197,14 +200,18 @@ void WavepoolEffect::update(void) {
       #endif
 
       uint8_t intensity = abs(height) * 2;
+      uint8_t saturation = 0xff - intensity;
+      uint8_t value = (intensity >= 128) ? 255 : intensity << 1;
 
       // color starts white but gets dimmer and more saturated as it fades,
       // with hue wobbling according to height map
+      #ifdef CONSTANT_HUE
+      int16_t hue = current_hue;
+      #else
       int16_t hue = (current_hue + height + (height>>1)) & 0xff;
+      #endif
 
-      cRGB color = hsvToRgb(hue,
-                            0xff - intensity,
-                            ((uint16_t)intensity)*2);
+      cRGB color = hsvToRgb(hue, saturation, value);
 
       ::LEDControl.setCrgbAt(r, c, color);
     }

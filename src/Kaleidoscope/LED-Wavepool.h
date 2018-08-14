@@ -31,6 +31,9 @@ class WavepoolEffect : public LEDMode {
 
   // ms before idle animation starts after last keypress
   static uint16_t idle_timeout;
+  // initial hue at keyboard boot, or all the time if CONSTANT_HUE is
+  // defined.
+  const uint8_t starting_hue = 192;
 
  protected:
   void setup(void) final;
