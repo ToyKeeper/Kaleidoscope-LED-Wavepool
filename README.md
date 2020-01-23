@@ -40,7 +40,7 @@ properties:
 
 ### `.idle_timeout`
 
-> When to keys are being pressed, light will periodically splash across
+> When no keys are being pressed, light will periodically splash across
 > the keyboard.  This value sets the delay in ms before that starts.
 >
 > To disable the idle animation entirely, set this to 0.
